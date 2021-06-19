@@ -92,6 +92,13 @@ parcel src/preview.html
 Then load [http://localhost:1234/](http://localhost:1234/)
 
 
+### Windows USB device handling
+Windows require the app to have admin rights in order to list usb devices and write to them.
+When the app runs on windows it creates an IPC (named pipes) and executes a script (`usb-writer.js`) with elevated priviledges (UAC)
+that listens to the parent IPC.
+
+For easier development `alwaysSpawnClient` can be set to `true` for all OS's to spawn an IPC server even if is not required.
+
 ## Security notes
 
 ### Dependencies

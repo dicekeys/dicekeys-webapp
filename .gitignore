@@ -9,6 +9,9 @@ test-outputs/
 coverage/
 .parcel-cache
 
+.idea
+web/.npmrc
+
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json
