@@ -6,7 +6,7 @@ import {
   UsbDeviceMonitor
 } from "./UsbDeviceMonitor"
 import {createIpcServer} from "./IpcServer";
-import {alwaysSpawnClient, isUsbWriterProcess, isWin} from "../../usb";
+import {runUsbCommandsInSeparateProcess, isUsbWriterProcess, isWin} from "../../usb";
 
 const isUsbDeviceASeedableFIDOKey = ({vendorId, productId}: Device): boolean =>
 (vendorId == 0x10c4 && productId == 0x8acf) ||
@@ -33,7 +33,7 @@ export const monitorForFidoDevicesConnectedViaUsb = (
   seedableFidoKeysMonitor = seedableFidoKeysMonitor ?? new UsbDeviceMonitor(isUsbDeviceASeedableFIDOKey);
 
 
-  if((isWin || alwaysSpawnClient) && !isUsbWriterProcess){
+  if((isWin || runUsbCommandsInSeparateProcess) && !isUsbWriterProcess){
     return createIpcServer(deviceListUpdateCallback, errorCallback)
   }
 

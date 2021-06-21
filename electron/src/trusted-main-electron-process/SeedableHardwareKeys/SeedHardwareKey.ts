@@ -5,7 +5,7 @@ import {
   WriteSeedToFIDOKeyException
 } from "../ElectronBridge";
 import {ipcWriteSeedToFIDOKey} from "./IpcServer";
-import {alwaysSpawnClient, isUsbWriterProcess, isWin} from "../../usb";
+import {runUsbCommandsInSeparateProcess, isUsbWriterProcess, isWin} from "../../usb";
 
 
 // Error reported when the user fails to grant access
@@ -234,7 +234,7 @@ const hexStringToUint8ClampedArray = (hexString?: string): Uint8ClampedArray =>
  * @throws SeedingException other exceptions (typically implementation issues)
  */
 export const writeSeedToFIDOKey = async (deviceIdentifier: DeviceUniqueIdentifier, seedAs32BytesIn64CharHexFormat: string, extStateHexFormat?: string) => {
-  if((isWin || alwaysSpawnClient) && !isUsbWriterProcess){
+  if((isWin || runUsbCommandsInSeparateProcess) && !isUsbWriterProcess){
     // TODO wait for success from IPC
     return await ipcWriteSeedToFIDOKey(deviceIdentifier, seedAs32BytesIn64CharHexFormat, extStateHexFormat)
 

@@ -5,20 +5,13 @@ import * as sudo from "sudo-prompt"
 import * as child_process from 'child_process'
 import fs from "fs";
 import {
+    Device,
     DeviceListUpdateCallback, ErrorCallback,
     StopMonitoringFunction
 } from "./UsbDeviceMonitor";
 import {ExecException} from "child_process";
 import {DeviceUniqueIdentifier} from "../../../../common/IElectronBridge";
-import {isWin} from "../../usb";
-
-export var UsbSocketPath : string
-
-if(process.platform == "win32"){
-    UsbSocketPath = path.join('\\\\?\\pipe', process.cwd(), 'dicekeys')
-} else {
-    UsbSocketPath = 'usb.sock'
-}
+import {IpcPacket, ipcSocketPath, isWin} from "../../usb";
 
 function escapeParamCmd(value: any): string {
     // Make sure it's a string
@@ -28,29 +21,49 @@ function escapeParamCmd(value: any): string {
 }
 let ipcServer: Server | null
 let clientSocket: Socket | null
+
+let writeSeedToFIDOKeyPromiseResolve: (value: 'success') => void;
+let writeSeedToFIDOKeyPromiseReject: (reason?: any) => void;
+const writeSeedToFIDOKeyPromise : (resolve: (value: 'success') => void, reject: (reason?: any) => void) => void = (resolve, reject) => {
+    writeSeedToFIDOKeyPromiseResolve = resolve
+    writeSeedToFIDOKeyPromiseReject = reject
+}
+
 export function createIpcServer(deviceListUpdateCallback: DeviceListUpdateCallback, errorCallback?: ErrorCallback) : StopMonitoringFunction{
     ipcServer = net.createServer((socket: Socket) => {
         clientSocket = socket
 
         socket.on('data', (data => {
-            let json = JSON.parse(data.toString())
+            let ipcPacket = JSON.parse(data.toString()) as IpcPacket
 
-            if (json.error) {
-                errorCallback?.(json.error)
-            } else if (json.devices) {
-                deviceListUpdateCallback(json.devices)
+            if(ipcPacket.command == 'writeSeedToFIDOKey'){
+
+                if (ipcPacket.error) {
+                    writeSeedToFIDOKeyPromiseReject(ipcPacket.error)
+                } else if (ipcPacket.data) {
+                    writeSeedToFIDOKeyPromiseResolve('success')
+                }
+
+            }else if(ipcPacket.command == 'listenForSeedableSecurityKeys'){
+                if(ipcPacket.error){
+                    errorCallback?.(ipcPacket.error)
+                }else{
+                    deviceListUpdateCallback(ipcPacket.data as Device[])
+                }
             }
         }))
     });
 
     if(!isWin){
         // clear socket file
-        if(fs.existsSync(UsbSocketPath))  fs.unlinkSync(UsbSocketPath)
+        if(fs.existsSync(ipcSocketPath))  fs.unlinkSync(ipcSocketPath)
     }
 
-    console.log("Starting IPC Server", UsbSocketPath)
+    console.log("Starting IPC Server", ipcSocketPath)
+    console.log("Listening or writing to USB devices requires the app to run with elevated privileges. \n" +
+        "A UAC dialog will be displayed to requesting admin rights for that purpose.")
 
-    ipcServer.listen(UsbSocketPath, () => {
+    ipcServer.listen(ipcSocketPath, () => {
         let cmd = escapeParamCmd(process.argv[0]) + ' ' + path.join('dist', 'src', 'usb-writer.js')
 
         const callback = (error?: Error | ExecException | null, stdout?: string | Buffer, stderr?: string | Buffer) => {
@@ -66,13 +79,13 @@ export function createIpcServer(deviceListUpdateCallback: DeviceListUpdateCallba
 
         // Elevate
         if(isWin){
-            console.log("Elavate", cmd)
+            console.log("Elevate", cmd)
             sudo.exec(cmd, {
                 name: 'DiceKeys',
                 env,
             }, callback)
         }else{
-            // on macos / linux run it a a regular exec
+            // on macos / linux run it with regular exec
             console.log("Spawn", cmd)
             child_process.exec(cmd,{
                 env,
@@ -94,7 +107,7 @@ export const ipcWriteSeedToFIDOKey = async (deviceIdentifier: DeviceUniqueIdenti
         data: {
             deviceIdentifier, seedAs32BytesIn64CharHexFormat, extStateHexFormat
         }
-    }))
-    // TODO fix this to handle the response
-    return "success" as const;
+    } as IpcPacket))
+
+    return new Promise(writeSeedToFIDOKeyPromise)
 }
