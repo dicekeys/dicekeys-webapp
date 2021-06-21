@@ -2,40 +2,50 @@ import * as net from "net"
 import {Device} from "./trusted-main-electron-process/SeedableHardwareKeys/UsbDeviceMonitor";
 import {monitorForFidoDevicesConnectedViaUsb} from "./trusted-main-electron-process/SeedableHardwareKeys/SeedableHardwareKeys";
 import {writeSeedToFIDOKey} from "./trusted-main-electron-process/SeedableHardwareKeys/SeedHardwareKey";
-import {IpcPacket, ipcSocketPath, WriteSeedToFIDOKeyPacket} from "./usb";
+import {IpcRequestPacket, ipcSocketPath, ListenForSeedableSecurityKeysResponsePacket, WriteSeedToFIDOKeyResponsePacket} from "./usb";
 
 let client = net.createConnection(ipcSocketPath, () => {
+    // Will report list of keys connected to USB
+    // Automatically starts monitoring for keys inserted/removed into USB
+    // Can receive commands to write to USB devices
+    // Must be told to stop monitoring via a connection close or destroy packet lest the process will never terminate.
 
+    // Immediately start monitoring for USB insertions/removals
     const stopMonitoring = monitorForFidoDevicesConnectedViaUsb((devices: Device[]) => {
         client.write(JSON.stringify({
             command: 'listenForSeedableSecurityKeys',
             data: devices
-        } as IpcPacket))
+        } as ListenForSeedableSecurityKeysResponsePacket))
     }, (error: any) => {
         client.write(JSON.stringify({
             command: 'listenForSeedableSecurityKeys',
             error: error
-        } as IpcPacket))
+        } as ListenForSeedableSecurityKeysResponsePacket))
     });
 
+    // Handle further requests after process start
     client.on('data', (data => {
-        let json = JSON.parse(data.toString()) as IpcPacket
+        const requestPacket = JSON.parse(data.toString()) as IpcRequestPacket
 
-        if (json.command == 'writeSeedToFIDOKey') {
-            let data = json.data as WriteSeedToFIDOKeyPacket
+        // The request is to write to a FIDO key
+        if (requestPacket.command == 'writeSeedToFIDOKey') {
+            const {data} = requestPacket;
 
             writeSeedToFIDOKey(data.deviceIdentifier, data.seedAs32BytesIn64CharHexFormat, data.extStateHexFormat).then(result => {
-                client.write(JSON.stringify({
+                const response: WriteSeedToFIDOKeyResponsePacket = {
                     command : 'writeSeedToFIDOKey',
                     data: result
-                } as IpcPacket))
-            }).catch( exception =>
-                client.write(JSON.stringify({
+                }
+                client.write(JSON.stringify(response))
+            }).catch( exception => {
+                const response: WriteSeedToFIDOKeyResponsePacket = {
                     command : 'writeSeedToFIDOKey',
                     error: exception
-                } as IpcPacket))
-            )
-        } else if (json.command == 'destroy') {
+                }
+                client.write(JSON.stringify(response))
+            })
+        } else if (requestPacket.command == 'destroy') {
+            // The request is to close the channel
             stopMonitoring()
             client.destroy()
         }

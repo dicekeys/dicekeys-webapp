@@ -11,7 +11,7 @@ import {
 } from "./UsbDeviceMonitor";
 import {ExecException} from "child_process";
 import {DeviceUniqueIdentifier} from "../../../../common/IElectronBridge";
-import {IpcPacket, ipcSocketPath, isWin} from "../../usb";
+import {IpcResponsePacket, ipcSocketPath, isWin, WriteSeedToFIDOKeyRequestPacket, WriteSeedToFIDOKeyResponsePacket} from "../../usb";
 
 function escapeParamCmd(value: any): string {
     // Make sure it's a string
@@ -22,30 +22,22 @@ function escapeParamCmd(value: any): string {
 let ipcServer: Server | null
 let clientSocket: Socket | null
 
-let writeSeedToFIDOKeyPromiseResolve: (value: 'success') => void;
-let writeSeedToFIDOKeyPromiseReject: (reason?: any) => void;
-const writeSeedToFIDOKeyPromise : (resolve: (value: 'success') => void, reject: (reason?: any) => void) => void = (resolve, reject) => {
-    writeSeedToFIDOKeyPromiseResolve = resolve
-    writeSeedToFIDOKeyPromiseReject = reject
-}
+
+// A queue of writeToFidoKey calls waiting for a response, in the order the call was issued
+const writeToFidoKeyListenerQueue: ((packet: WriteSeedToFIDOKeyResponsePacket) => any)[] = [];
+
 
 export function createIpcServer(deviceListUpdateCallback: DeviceListUpdateCallback, errorCallback?: ErrorCallback) : StopMonitoringFunction{
     ipcServer = net.createServer((socket: Socket) => {
         clientSocket = socket
 
         socket.on('data', (data => {
-            let ipcPacket = JSON.parse(data.toString()) as IpcPacket
+            let ipcPacket = JSON.parse(data.toString()) as IpcResponsePacket
 
-            if(ipcPacket.command == 'writeSeedToFIDOKey'){
-
-                if (ipcPacket.error) {
-                    writeSeedToFIDOKeyPromiseReject(ipcPacket.error)
-                } else if (ipcPacket.data) {
-                    writeSeedToFIDOKeyPromiseResolve('success')
-                }
-
-            }else if(ipcPacket.command == 'listenForSeedableSecurityKeys'){
-                if(ipcPacket.error){
+            if(ipcPacket.command === "writeSeedToFIDOKey") {
+                writeToFidoKeyListenerQueue.shift()?.(ipcPacket);
+            }else if(ipcPacket.command == "listenForSeedableSecurityKeys"){
+                if (ipcPacket.error != null){
                     errorCallback?.(ipcPacket.error)
                 }else{
                     deviceListUpdateCallback(ipcPacket.data as Device[])
@@ -101,13 +93,20 @@ export function createIpcServer(deviceListUpdateCallback: DeviceListUpdateCallba
     }
 }
 
-export const ipcWriteSeedToFIDOKey = async (deviceIdentifier: DeviceUniqueIdentifier, seedAs32BytesIn64CharHexFormat: string, extStateHexFormat?: string) => {
-    clientSocket?.write(JSON.stringify({
-        command: 'writeSeedToFIDOKey',
-        data: {
-            deviceIdentifier, seedAs32BytesIn64CharHexFormat, extStateHexFormat
-        }
-    } as IpcPacket))
-
-    return new Promise(writeSeedToFIDOKeyPromise)
-}
+export const ipcWriteSeedToFIDOKey = async (deviceIdentifier: DeviceUniqueIdentifier, seedAs32BytesIn64CharHexFormat: string, extStateHexFormat?: string): Promise<"success"> =>
+    new Promise<"success">( (resolve, reject) => {
+        const request: WriteSeedToFIDOKeyRequestPacket = {
+            command: 'writeSeedToFIDOKey',
+            data: {
+                deviceIdentifier, seedAs32BytesIn64CharHexFormat, extStateHexFormat
+            }
+        };
+        clientSocket?.write(JSON.stringify(request));
+        writeToFidoKeyListenerQueue.push( (ipcPacket) => {
+            if (ipcPacket.data != null && ipcPacket.error == null) {
+                resolve("success");
+            } else {
+                reject(ipcPacket.error);
+            }
+        });
+    });

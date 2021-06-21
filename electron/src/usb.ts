@@ -12,14 +12,40 @@ export interface DeviceUniqueIdentifier {
     serialNumber: string;
 }
 
-export interface WriteSeedToFIDOKeyPacket {
-    deviceIdentifier: DeviceUniqueIdentifier,
-    seedAs32BytesIn64CharHexFormat: string,
-    extStateHexFormat?: string
+export interface WriteSeedToFIDOKeyData {
+    deviceIdentifier: DeviceUniqueIdentifier;
+    seedAs32BytesIn64CharHexFormat: string;
+    extStateHexFormat?: string;
 }
 
-export interface IpcPacket {
-    command: 'listenForSeedableSecurityKeys' | 'writeSeedToFIDOKey' | 'destroy';
-    data: WriteSeedToFIDOKeyPacket | Device[] | "success";
-    error: string
+interface BaseIpcRequestPacket<COMMAND extends string> {
+    command: COMMAND;
 }
+
+export interface WriteSeedToFIDOKeyRequestPacket extends BaseIpcRequestPacket<"writeSeedToFIDOKey"> {
+    data: WriteSeedToFIDOKeyData;
+}
+// This command would exist, but listening is automatically inferred on connection
+// export type ListenForSeedableSecurityKeysRequestPacket = BaseIpcRequestPacket<"listenForSeedableSecurityKeys">;
+export type DestroyIpcChannelRequestPacket = BaseIpcRequestPacket<"destroy">;
+
+export type IpcRequestPacket =
+    WriteSeedToFIDOKeyRequestPacket |
+//    ListenForSeedableSecurityKeysRequestPacket |
+    DestroyIpcChannelRequestPacket;
+
+
+type BaseIpcResponsePacket<COMMAND extends string, DATA> = {
+    command: COMMAND;
+    data?: DATA;
+    error?: string;
+}
+
+export type WriteSeedToFIDOKeyResponsePacket = BaseIpcResponsePacket<"writeSeedToFIDOKey", "success">;
+export type ListenForSeedableSecurityKeysResponsePacket = BaseIpcResponsePacket<"listenForSeedableSecurityKeys", Device[]>;
+export type DestroyIpcChannelResponsePacket = BaseIpcResponsePacket<"destroy", "success">;
+
+export type IpcResponsePacket =
+    WriteSeedToFIDOKeyResponsePacket |
+    ListenForSeedableSecurityKeysResponsePacket |
+    DestroyIpcChannelResponsePacket;
