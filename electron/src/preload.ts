@@ -105,7 +105,7 @@ const electronBridgeTypeChecked: IElectronBridge = {
   getDiceKey: createIpcAsyncRequestClientFunction("getDiceKey"),
   setDiceKey: createIpcAsyncRequestClientFunction("setDiceKey"),
   deleteDiceKey: createIpcAsyncRequestClientFunction("deleteDiceKey"),
-  getDiceKeys: createIpcAsyncRequestClientFunction("getDiceKeys"),
+  getStoredKeyList: createIpcAsyncRequestClientFunction("getStoredKeyList"),
   listenForSeedableSecurityKeys: createIpcListenerRequestClientFunction("listenForSeedableSecurityKeys"),
 //  fix: {} as IElectronBridge["fix"]
 };

@@ -48,10 +48,10 @@ export interface IElectronBridgeDialogsAsync{
   openMessageDialog(options: MessageBoxOptions): Promise<MessageBoxReturnValue>;
 }
 export interface IElectronBridgeDiceKeysStoreAsync {
-  getDiceKey(id: string): Promise<string | null>
-  setDiceKey(id: string, humanReadableForm: string): Promise<void>
+  getDiceKey(id: string): Promise<string | null>;
+  setDiceKey(id: string, humanReadableForm: string): Promise<void>;
   deleteDiceKey(id: string): Promise<boolean>
-  getDiceKeys(): Promise<{[id: string]: { id: string, humanReadableForm: string}}>
+  getStoredKeyList: () => Promise<{centerLetterAndDigit: string, keyId: string}[]>;
 }
 
 export type RemoveListener = () => void;
