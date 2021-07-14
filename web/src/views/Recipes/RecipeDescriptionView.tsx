@@ -3,6 +3,7 @@ import { AndClause } from "../basics";
 import { DerivationRecipeType, DiceKeysAppSecretRecipe } from "../../dicekeys";
 import { describeRecipeType } from "./DescribeRecipeType";
 import css from "./Recipes.module.css";
+import { observer } from "mobx-react";
 
 interface RecipeState {
   type?: DerivationRecipeType;
@@ -17,7 +18,7 @@ const HostNameView = ({host}: {host: string}) => (
   (<><span className={css.host_name_span}>{ host }</span> (but not its subdomains)</>)
 )
 
-export const RecipeDescriptionContentView = ({state}: {state: RecipeState}) => {
+export const RecipeDescriptionContentView = observer ( ({state}: {state: RecipeState}) => {
   const {type, recipeJson, recipeIsValid} = state;
   if (type == null || recipeJson == null || !recipeIsValid) return (<i>Enter a purpose for the recipe.</i>);
   let recipe: DiceKeysAppSecretRecipe | undefined = (() => {
@@ -49,7 +50,7 @@ export const RecipeDescriptionContentView = ({state}: {state: RecipeState}) => {
         <> with <AndClause items={withClauses}/></>
       )}.</>
   );
-}
+});
 
 export const RecipeDescriptionView = (props: {state: RecipeState}) => (
   <div className={css.RecipeDescriptionView} >

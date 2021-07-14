@@ -117,7 +117,7 @@
   flex-direction: column;
   align-content: stretch;
   padding: 1rem;
-  min-width: 60vw;
+  min-width: 70vw;
   background-color: rgba(248,248,248,1);
   border-top-right-radius: 0.5rem;
   border-bottom-right-radius: 0.5rem;
@@ -163,7 +163,7 @@
 .RecipeFieldLabelRow {
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: center;
   align-self: stretch;
   flex-grow: 1;
   align-content: baseline;
@@ -397,7 +397,7 @@
   word-spacing: normal;
   text-transform: none;
   text-align: start;
-  font: 400 1rem monospace; 
+  font: 400 0.75rem monospace; 
   border-width: 2px;
   width: calc(85vw-3rem);
   padding: 1px 2px;
@@ -435,7 +435,7 @@
 }
 
 .FormattedRecipeDisabledDiv {
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .Bip39Field {

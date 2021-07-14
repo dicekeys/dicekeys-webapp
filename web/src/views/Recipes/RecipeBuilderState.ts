@@ -1,6 +1,6 @@
 import { action, makeAutoObservable } from "mobx";
 import {
-  StoredRecipe, DerivationRecipeType, builtInRecipeIdentifier, isRecipeBuiltIn, RecipeIdentifier, savedRecipeIdentifier, SavedRecipeIdentifier, BuiltInRecipeIdentifier, DiceKeysAppSecretRecipe
+  StoredRecipe, DerivationRecipeType, builtInRecipeIdentifier, isRecipeBuiltIn, RecipeIdentifier, savedRecipeIdentifier, SavedRecipeIdentifier, BuiltInRecipeIdentifier, DiceKeysAppSecretRecipe, LoadedRecipe, LoadedRecipeOrigin
 } from "../../dicekeys/StoredRecipe";
 import {
   addHostsToRecipeJson,
@@ -22,12 +22,13 @@ import { isValidJson } from "../../utilities/json";
 
 // type EditingMode = "fields" | "json" | undefined;
 
-interface RecipeBuilderStateConstructorOptions {
-  type?: DerivationRecipeType;
-  purpose?: string;
-  editing?: boolean;
-  purposeFieldNonEditableByDefault?: boolean;
-}
+// interface RecipeBuilderStateConstructorOptions {
+//   type?: DerivationRecipeType;
+//   purpose?: string;
+//   editing?: boolean;
+//   // fieldsToHide?: Set<RecipeFieldType>
+//   // fieldsToMakeNonEditableByDefault?: Set<RecipeFieldType>
+// }
 
 
 export class RecipeFieldFocusState {
@@ -41,27 +42,34 @@ export class RecipeFieldFocusState {
   toggleFocus = () => this.state.setFieldInFocus(this.isFieldInFocus ? undefined : this.field);
 };
 
+
 /**
  * State for building and displaying recipes
  */
 export class RecipeBuilderState {
-  constructor(options: RecipeBuilderStateConstructorOptions = {}) {
-    const {
-      type = undefined,
-      purpose = "",
-      editing = false,
-      purposeFieldNonEditableByDefault = false,
-    } = options;
+//  fieldsToHide?: Set<RecipeFieldType>;
+  fieldsToMakeNonEditableByDefault?: Set<RecipeFieldType>;
+  constructor(loadedRecipe?: LoadedRecipe) {
     makeAutoObservable(this);
-    this.type = type;
-    this.purposeField = purpose;
-    this.editing = editing;
-    this.purposeFieldNonEditableByDefault = purposeFieldNonEditableByDefault;
-    this._mayEditPurpose = !purposeFieldNonEditableByDefault;
-    if (purpose) {
-      this.setRecipeJson(addPurposeToRecipeJson(undefined, purpose));
+    if (loadedRecipe != null) {
+      this.loadRecipe(loadedRecipe);
     }
+//    this.fieldsToHide = fieldsToHide;
+//    this.fieldsToMakeNonEditableByDefault = fieldsToMakeNonEditableByDefault;
+    // this.type = type;
+    // this.purposeField = purpose;
+    // this.editing = editing;
+//    this.purposeFieldNonEditableByDefault = purposeFieldNonEditableByDefault;
+//    this._mayEditPurpose = this.origin != "BuiltIn"; // !fieldsToMakeNonEditableByDefault?.has("purpose");
+    // if (purpose) {
+    //   this.setRecipeJson(addPurposeToRecipeJson(undefined, purpose));
+    // }
   }
+
+  origin: LoadedRecipeOrigin | undefined;
+  setOrigin = action( (origin: LoadedRecipeOrigin | undefined) => {
+    this.origin = origin;
+  } )
 
   type: DerivationRecipeType | undefined;
   setType = action( (type: DerivationRecipeType | undefined) => {
@@ -108,6 +116,12 @@ export class RecipeBuilderState {
   /////////////////////////////////////////////////////////////
   // LengthInChars field ("lengthInChars") for Passwords only
   /////////////////////////////////////////////////////////////
+  public get lengthInCharsFieldNonEditableByDefault(): boolean {
+    return !!this.fieldsToMakeNonEditableByDefault?.has("lengthInChars");
+  }
+  public get lengthInCharsFieldHide(): boolean {
+    return this.origin !== "Template";
+  }
   get mayEditLengthInChars(): boolean { return this.type === "Password" }
   lengthInCharsState = new NumericTextFieldState({minValue: 16, incrementBy: 4, defaultValue: 64, onChanged: (lengthInChars) => {
     this.recipeJson = addLengthInCharsToRecipeJson(this.recipeJson, lengthInChars);
@@ -117,6 +131,12 @@ export class RecipeBuilderState {
   ///////////////////////////////////////////////////////////
   // LengthInBytes field ("lengthInBytes") for Secrets only
   ///////////////////////////////////////////////////////////
+  public get lengthInBytesFieldNonEditableByDefault(): boolean {
+    return !!this.fieldsToMakeNonEditableByDefault?.has("lengthInBytes");
+  }
+  public get lengthInBytesFieldHide(): boolean {
+    return this.origin !== "Template";
+  }
   get mayEditLengthInBytes(): boolean { return this.type === "Secret" }
   lengthInBytesState = new NumericTextFieldState({minValue: 4, incrementBy: 16, defaultValue: 32, onChanged: (lengthInBytes) => {
     this.recipeJson = addLengthInBytesToRecipeJson(this.recipeJson, lengthInBytes);
@@ -136,8 +156,13 @@ export class RecipeBuilderState {
   //////////////////////////////////////////
   // Purpose field ("purpose" or "allow")
   //////////////////////////////////////////
-  public readonly purposeFieldNonEditableByDefault: boolean;
-  private _mayEditPurpose: boolean;
+  public get purposeFieldNonEditableByDefault(): boolean {
+    return !!this.fieldsToMakeNonEditableByDefault?.has("purpose");
+  }
+  public get purposeFieldHide(): boolean {
+    return this.origin !== "Template";
+  }
+  private _mayEditPurpose: boolean = true;
   get mayEditPurpose(): boolean { return this._mayEditPurpose };
   setMayEditPurpose = action ( (mayEditPurpose: boolean) => this._mayEditPurpose = mayEditPurpose);
   purposeField: string = "";
@@ -249,14 +274,21 @@ export class RecipeBuilderState {
     this.lengthInCharsState.textValue = lengthInChars != null ? `${lengthInChars}` : ""
   });
 
-  loadRecipe = action ((storedRecipe?: Partial<StoredRecipe>) => {
-    if (storedRecipe == null) return;
+  loadRecipe = action ((loadedRecipe?: LoadedRecipe) => {
+    if (loadedRecipe == null) return;
     this.emptyAllRecipeFields();
-    this.name = storedRecipe.name ?? "";
-    this.type = storedRecipe.type;
+    this.origin = loadedRecipe.origin;
+    this.name = loadedRecipe.name ?? "";
+    this.type = loadedRecipe.type;
+    // if (
+    //   loadedRecipe.type === "Password" && loadedRecipe.recipeJson != null &&
+    //   ((JSON.parse(loadedRecipe.recipeJson) as DiceKeysAppSecretRecipe).purpose?.length ?? 0) > 0) {
+    //   // This is a 
+    //   this.fieldsToHide = new Set<RecipeFieldType>(["purpose", "lengthInChars"])
+    // }
     // Edit if custom recipe
-    this.editing = storedRecipe.name == null;
+    this.editing = origin !== "Saved";
     this.allowEditingOfRawRecipe = false;
-    this.setRecipeJson(storedRecipe.recipeJson);
+    this.setRecipeJson(loadedRecipe.recipeJson);
   });
 }

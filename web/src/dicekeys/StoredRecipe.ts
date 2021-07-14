@@ -4,7 +4,12 @@ import { jsonStringifyWithSortedFieldOrder } from "../utilities/json";
 
 export type DerivationRecipeType = DerivableObjectName
 
-export class StoredRecipe<NAME extends string = string> {
+export interface StoredRecipe {
+  readonly type: DerivationRecipeType;
+  readonly name: string;
+  readonly recipeJson: string;
+}
+export class BuiltInRecipe<NAME extends string = string> {
   constructor(
     public readonly type: DerivationRecipeType,
     public readonly name: NAME,
@@ -13,16 +18,25 @@ export class StoredRecipe<NAME extends string = string> {
   }
 }
 
+export type LoadedRecipeOrigin = "BuiltIn" | "Saved" | "Template";
+
+export interface LoadedRecipe<ORIGIN extends LoadedRecipeOrigin = LoadedRecipeOrigin, NAME extends string = string> {
+  readonly origin: ORIGIN;
+  readonly type: DerivationRecipeType;
+  readonly name: ORIGIN extends "Saved" ? NAME : (NAME | undefined);
+  readonly recipeJson: ORIGIN extends "Template" ? (string | undefined) : string;
+}
+
 export const BuiltInRecipes: StoredRecipe[] = [
-	new StoredRecipe("Password", "1Password", `{"allow":[{"host":"*.1password.com"}]}`),
-	new StoredRecipe("Password", "Apple", `{"allow":[{"host":"*.apple.com"},{"host":"*.icloud.com"}],"lengthInChars":64}`),
-	new StoredRecipe("Password", "Authy", `{"allow":[{"host":"*.authy.com"}]}`),
-	new StoredRecipe("Password", "Bitwarden", `{"allow":[{"host":"*.bitwarden.com"}]}`),
-	new StoredRecipe("Password", "Facebook", `{"allow":[{"host":"*.facebook.com"}]}`),
-	new StoredRecipe("Password", "Google", `{"allow":[{"host":"*.google.com"}]}`),
-	new StoredRecipe("Password", "Keeper", `{"allow":[{"host":"*.keepersecurity.com"},{"host":"*.keepersecurity.eu"}]}`),
-	new StoredRecipe("Password", "LastPass", `{"allow":[{"host":"*.lastpass.com"}]}`),
-	new StoredRecipe("Password", "Microsoft", `{"allow":[{"host":"*.microsoft.com"},{"host":"*.live.com"}]}`)  
+	new BuiltInRecipe("Password", "1Password", `{"allow":[{"host":"*.1password.com"}]}`),
+	new BuiltInRecipe("Password", "Apple", `{"allow":[{"host":"*.apple.com"},{"host":"*.icloud.com"}],"lengthInChars":64}`),
+	new BuiltInRecipe("Password", "Authy", `{"allow":[{"host":"*.authy.com"}]}`),
+	new BuiltInRecipe("Password", "Bitwarden", `{"allow":[{"host":"*.bitwarden.com"}]}`),
+	new BuiltInRecipe("Password", "Facebook", `{"allow":[{"host":"*.facebook.com"}]}`),
+	new BuiltInRecipe("Password", "Google", `{"allow":[{"host":"*.google.com"}]}`),
+	new BuiltInRecipe("Password", "Keeper", `{"allow":[{"host":"*.keepersecurity.com"},{"host":"*.keepersecurity.eu"}]}`),
+	new BuiltInRecipe("Password", "LastPass", `{"allow":[{"host":"*.lastpass.com"}]}`),
+	new BuiltInRecipe("Password", "Microsoft", `{"allow":[{"host":"*.microsoft.com"},{"host":"*.live.com"}]}`)  
 ];
 
 
@@ -50,11 +64,13 @@ export const isCustomRecipeIdentifier =
   (recipeIdentifier?: CustomRecipeIdentifier | string): recipeIdentifier is CustomRecipeIdentifier =>
     !!(recipeIdentifier?.startsWith(customPrefix));
 export const savedRecipeIdentifierToStoredRecipe = 
-  (identifier: SavedRecipeIdentifier) => JSON.parse(identifier.substr(savedPrefix.length)) as StoredRecipe;
+  (identifier: SavedRecipeIdentifier) =>
+    ({origin: "Saved", ...(JSON.parse(identifier.substr(savedPrefix.length)) as StoredRecipe)} as LoadedRecipe<"Saved">);
 export const builtInRecipeIdentifierToStoredRecipe = 
-  (identifier: BuiltInRecipeIdentifier) => JSON.parse(identifier.substr(builtInPrefix.length)) as StoredRecipe;
+  (identifier: BuiltInRecipeIdentifier) =>
+    ({origin: "BuiltIn", ...(JSON.parse(identifier.substr(builtInPrefix.length)) as StoredRecipe)} as LoadedRecipe<"BuiltIn">);
 export const customRecipeIdentifierToStoredRecipe = 
-  (identifier: CustomRecipeIdentifier) => JSON.parse(identifier.substr(customPrefix.length)) as Omit<StoredRecipe, "recipeJson" | "name">;
+  (identifier: CustomRecipeIdentifier) => ({origin: "Template", ...JSON.parse(identifier.substr(customPrefix.length))}) as LoadedRecipe<"Template">;
 
 export const storedRecipeIfSavedRecipeIdentifier =
 (identifier: SavedRecipeIdentifier | string | undefined) =>
@@ -71,7 +87,7 @@ export const storedRecipeIfCustomRecipeIdentifier =
     (isCustomRecipeIdentifier(identifier) ? customRecipeIdentifierToStoredRecipe(identifier) : undefined)  as (
       typeof identifier extends CustomRecipeIdentifier ? StoredRecipe : undefined
     );
-export const getStoredRecipe = (recipeIdentifier?: PotentialRecipeIdentifier): StoredRecipe | undefined => {
+export const getStoredRecipe = (recipeIdentifier?: PotentialRecipeIdentifier): LoadedRecipe | undefined => {
   return storedRecipeIfSavedRecipeIdentifier(recipeIdentifier) ??
     storedRecipeIfBuiltInRecipeIdentifier(recipeIdentifier) ??
     storedRecipeIfCustomRecipeIdentifier(recipeIdentifier);

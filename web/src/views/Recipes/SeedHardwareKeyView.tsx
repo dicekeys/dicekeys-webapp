@@ -18,6 +18,7 @@ import {
 } from "../../../../common/IElectronBridge";
 import { action, makeAutoObservable } from "mobx";
 import { isElectron } from "../../utilities/is-electron";
+import { LoadedRecipe } from "../../dicekeys/StoredRecipe";
 
 
 class SeedableDiceKeys {
@@ -148,11 +149,11 @@ class SeedHardwareKeyViewState {
   derivedFromRecipeState: DerivedFromRecipeState;
   constructor(public readonly seedString: string) {
     const recipeBuilderState = new RecipeBuilderState({
+      origin: "BuiltIn",
+//      name: "",
       type: "Secret",
-      purpose: seedSecurityKeyPurpose,
-      editing: true,
-      purposeFieldNonEditableByDefault: true, 
-    });
+      recipeJson: `{"purpose":"${seedSecurityKeyPurpose}"}`,// purpose: ,
+    } as LoadedRecipe<"BuiltIn">);
     const derivedFromRecipeState = new DerivedFromRecipeState({recipeState: recipeBuilderState, seedString});
     this.recipeBuilderState = recipeBuilderState;
     this.derivedFromRecipeState = derivedFromRecipeState;

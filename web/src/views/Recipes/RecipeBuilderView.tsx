@@ -40,7 +40,7 @@ export const RecipeFieldView = observer ( ({
   >
     {children}
     <div className={css.RecipeFieldLabelRow}>
-      <div>&nbsp;</div>
+      {/* <div>&nbsp;</div> */}
       <label htmlFor={htmlFor}
         className={css.FieldLabel}
         onClick={ focusState.toggleFocus }
@@ -59,6 +59,7 @@ export const PurposeFieldView = observer( ({state}: {
   state: RecipeBuilderState,
 } ) => {
   const field = "purpose"
+  if (state.purposeFieldHide) return null;
   const fieldFocusState = new RecipeFieldFocusState(state, field);
   return (
     <RecipeFieldView
@@ -108,7 +109,7 @@ export const SequenceNumberFormFieldView = observer( ({state}: {state: RecipeBui
   )});
 
   export const LengthInCharsFormFieldView = observer( ({state}: {state: RecipeBuilderState}) => {
-    if (state.type !== "Password" || !state.mayEditLengthInChars) return null;
+    if (state.type !== "Password" || state.lengthInCharsFieldHide || !state.mayEditLengthInChars) return null;
     const fieldFocusState = new RecipeFieldFocusState(state, "lengthInChars");
     return (
       <RecipeFieldView focusState={fieldFocusState} label={"max length"} >
@@ -122,7 +123,7 @@ export const SequenceNumberFormFieldView = observer( ({state}: {state: RecipeBui
   });
 
 export const LengthInBytesFormFieldView = observer( ({state}: {state: RecipeBuilderState}) => {
-  if (state.type !== "Secret" || !state.mayEditLengthInBytes) return null;
+  if (state.type !== "Secret" || state.lengthInBytesFieldHide || !state.mayEditLengthInBytes) return null;
   const fieldFocusState = new RecipeFieldFocusState(state, "lengthInBytes");
   return (
     <RecipeFieldView focusState={fieldFocusState} label={"length (bytes)"} >

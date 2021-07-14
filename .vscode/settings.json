@@ -26,6 +26,7 @@
         "ctap",
         "ctaphid",
         "datetime",
+        "deeplinking",
         "deletable",
         "dicekey",
         "dicekeys",
