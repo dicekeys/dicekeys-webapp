@@ -28,6 +28,7 @@ export interface Device extends DeviceUniqueIdentifier {
 export interface IElectronBridgeSync {
   writeResultToStdOutAndExit(result: string): void;
   getCommandLineArguments(): string[];
+  getAppLink(): string[];
 }
 
 export type WriteSeedToFIDOKeyException = 
@@ -57,6 +58,7 @@ export interface IElectronBridgeDiceKeysStoreAsync {
 export type RemoveListener = () => void;
 export interface IElectronBridgeListener {
   listenForSeedableSecurityKeys(successCallback: (devices: Device[]) => any, errorCallback: (error: any) => any): RemoveListener;
+  listenForAppLinks(callback: (appLink: string[]) => any, errorCallback: (error: any) => any): RemoveListener;
 // for testing typings only  fix(sc: (a: string, b: number) => any, ec: (error: any) => any): RemoveListener;
 }
 

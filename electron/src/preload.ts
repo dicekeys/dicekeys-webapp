@@ -97,6 +97,7 @@ const createIpcListenerRequestClientFunction =
 const electronBridgeTypeChecked: IElectronBridge = {
   writeResultToStdOutAndExit: createIpcSyncRequestClientFunction("writeResultToStdOutAndExit"),
   getCommandLineArguments: createIpcSyncRequestClientFunction("getCommandLineArguments"),
+  getAppLink: createIpcSyncRequestClientFunction("getAppLink"),
 
   writeSeedToFIDOKey: createIpcAsyncRequestClientFunction("writeSeedToFIDOKey"),
 
@@ -107,6 +108,7 @@ const electronBridgeTypeChecked: IElectronBridge = {
   deleteDiceKey: createIpcAsyncRequestClientFunction("deleteDiceKey"),
   getDiceKeys: createIpcAsyncRequestClientFunction("getDiceKeys"),
   listenForSeedableSecurityKeys: createIpcListenerRequestClientFunction("listenForSeedableSecurityKeys"),
+  listenForAppLinks: createIpcListenerRequestClientFunction("listenForAppLinks"),
 //  fix: {} as IElectronBridge["fix"]
 };
 

@@ -3,6 +3,7 @@ import * as IpcApiFactory from "./trusted-main-electron-process/IpcApiFactory";
 import * as TrustedMainElectronProcess from "./trusted-main-electron-process";
 import {squirrelCheck} from './electron-squirrel-startup';
 import {createBrowserWindow} from "./createBrowserWindow";
+import {registerAppLinkProtocol, sendAppLink} from "./trusted-main-electron-process/AppLinksApi";
 
 // Force all the of APIs to lead by making the runtime environment
 // inspect the count of the keys of the module.
@@ -39,12 +40,22 @@ function startApplication() {
 }
 
 function bootstrapApplication() {
+  // Register dicekeys uri scheme
+  registerAppLinkProtocol()
+
   // Bootstrap if needed
   startApplication()
 }
 
-app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
-  // Someone tried to run a second instance, we should focus our window.
+app.on('second-instance', (_event, commandLine, _workingDirectory) => {
+    // Protocol handler for win32
+    // argv: An array of the second instance’s (command line / deep linked) arguments
+    if (process.platform == 'win32') {
+        // Keep only command line / deep linked arguments
+        sendAppLink(commandLine.slice(1), mainWindow)
+    }
+
+    // Someone tried to run a second instance, we should focus our window.
   if (mainWindow) {
     if (mainWindow.isMinimized()) {
       mainWindow.restore()
@@ -74,6 +85,15 @@ app.on("window-all-closed", () => {
   app.quit();
   // }
 });
+
+app.on('will-finish-launching', function() {
+    // Protocol handler for osx
+    app.on('open-url', function(event, url) {
+        event.preventDefault()
+        sendAppLink([url], mainWindow)
+    })
+})
+
 
 // We're not currently using the dialog APIs.  If we were to, and we support multiple windows, we would
 // want to keep a WindowID that let us associate the dialogs with the correct window ID?

@@ -46,6 +46,7 @@ npm run start
 First do all the steps before `npm run start` above
 ```
 cd electron
+npm run build
 npm run make
 ```
 

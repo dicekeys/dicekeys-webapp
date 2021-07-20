@@ -12,4 +12,4 @@ RUN dpkg --add-architecture i386 \
     && apt-get update \
     && apt-get install -y nodejs wine32 wine64
 
-CMD npm install && npx electron-forge make --package linux && npx electron-forge make --platform win32 --arch=x64
+CMD npm install && npm run dist && npm run dist --win --x64
