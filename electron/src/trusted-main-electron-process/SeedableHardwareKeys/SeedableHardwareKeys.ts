@@ -5,6 +5,8 @@ import {
   StopMonitoringFunction,
   UsbDeviceMonitor
 } from "./UsbDeviceMonitor"
+import {createIpcServer} from "./IpcServer";
+import {runUsbCommandsInSeparateProcess, isUsbWriterProcess, isWin} from "../../usb";
 
 const isUsbDeviceASeedableFIDOKey = ({vendorId, productId}: Device): boolean =>
 (vendorId == 0x10c4 && productId == 0x8acf) ||
@@ -17,7 +19,7 @@ var seedableFidoKeysMonitor: UsbDeviceMonitor | undefined;
  * that support seeding.
  * Do not use without consuming the return value (a function you need to call when done
  * monitoring or your process won't exit)
- * 
+ *
  * @param deviceListUpdateCallback A callback to receive a list of USB devices when the
  * list is first fetched or when any changes occur
  * @param errorCallback A callback to receive any errors in fetching changes to the USB devices.
@@ -29,5 +31,11 @@ export const monitorForFidoDevicesConnectedViaUsb = (
   errorCallback?: ErrorCallback
 ) : StopMonitoringFunction => {
   seedableFidoKeysMonitor = seedableFidoKeysMonitor ?? new UsbDeviceMonitor(isUsbDeviceASeedableFIDOKey);
+
+
+  if((isWin || runUsbCommandsInSeparateProcess) && !isUsbWriterProcess){
+    return createIpcServer(deviceListUpdateCallback, errorCallback)
+  }
+
   return seedableFidoKeysMonitor.startMonitoring(deviceListUpdateCallback, errorCallback);
 }

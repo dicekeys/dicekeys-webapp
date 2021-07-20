@@ -4,6 +4,8 @@ import {
   DeviceUniqueIdentifier,
   WriteSeedToFIDOKeyException
 } from "../ElectronBridge";
+import {ipcWriteSeedToFIDOKey} from "./IpcServer";
+import {runUsbCommandsInSeparateProcess, isUsbWriterProcess, isWin} from "../../usb";
 
 
 // Error reported when the user fails to grant access
@@ -62,7 +64,7 @@ class CtapHidPacketReceived {
   get isInitializationPacket(): boolean {
     return (this.commandByte & 0x80) != 0
   }
-  
+
   get command(): number {
     return this.commandByte & 0x7f
   }
@@ -84,7 +86,7 @@ class CtapHidInitResponseMessage {
   /// Decode an HID INIT response message from the data within the response
   /// - Parameter message: The data encoded in the packet
   constructor(private readonly message: DataView) {}
-  
+
   // DATA    8-byte nonce
   get nonce(): Uint8ClampedArray {
     return new Uint8ClampedArray(this.message.buffer.slice(0, 8));
@@ -167,7 +169,7 @@ const getChannel = async (device: HIDDevice): Promise<number> => {
       device.read( (err, data) => { if (err != null) reject(err); else resolve(data); } ) );
     //console.log(`response: ${response}`);
     let buffer = Uint8ClampedArray.from(response).buffer;
-    const packet = new CtapHidPacketReceived(new DataView(buffer));    
+    const packet = new CtapHidPacketReceived(new DataView(buffer));
     const message = new CtapHidInitResponseMessage(packet.message);
     if (message.nonce.every( (byte, index) => byte == channelCreationNonce[index] )) {
       // The nonces match so this is the channel we requested
@@ -181,7 +183,7 @@ const getChannel = async (device: HIDDevice): Promise<number> => {
 }
 
 
-const sendWriteSeedMessage = async (device: HIDDevice, channel: number, seed: Uint8ClampedArray, extState: Uint8ClampedArray): Promise<void> => { 
+const sendWriteSeedMessage = async (device: HIDDevice, channel: number, seed: Uint8ClampedArray, extState: Uint8ClampedArray): Promise<void> => {
   const commandVersion = 1;
   if (seed.length != 32) {
     throw exceptionString("SeedShouldBe32Bytes")
@@ -221,17 +223,23 @@ const hexStringToUint8ClampedArray = (hexString?: string): Uint8ClampedArray =>
   new Uint8ClampedArray(hexString.match(/.{1,2}/g)!.map( (byte) => parseInt(byte, 16)));
 
 /**
- * Write a cryptographic seed to a seedable FIDO key 
+ * Write a cryptographic seed to a seedable FIDO key
  * https://github.com/dicekeys/seeding-webauthn
- * 
+ *
  * @param device A descriptor of the USB device to write to
  * @param seed The 32-byte cryptographic seed
  * @param extState Up to 256-bytes of additional state to store
- * 
+ *
  * @throws ExceptionUserDidNotAuthorizeSeeding if the user does not authorize the write by tapping on the button.
  * @throws SeedingException other exceptions (typically implementation issues)
  */
 export const writeSeedToFIDOKey = async (deviceIdentifier: DeviceUniqueIdentifier, seedAs32BytesIn64CharHexFormat: string, extStateHexFormat?: string) => {
+  if((isWin || runUsbCommandsInSeparateProcess) && !isUsbWriterProcess){
+    // TODO wait for success from IPC
+    return await ipcWriteSeedToFIDOKey(deviceIdentifier, seedAs32BytesIn64CharHexFormat, extStateHexFormat)
+
+  }
+
   const {vendorId, productId, serialNumber} = deviceIdentifier;
   const seed = hexStringToUint8ClampedArray(seedAs32BytesIn64CharHexFormat);
   const extState = extStateHexFormat == null || extStateHexFormat.length == 0 ?

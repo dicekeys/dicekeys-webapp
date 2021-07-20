@@ -5,6 +5,7 @@
     "build": "tsc -p ."
   },
   "devDependencies": {
-    "electron": "^12.0.10"
+    "electron": "^12.0.10",
+    "typescript": "^4.3.4"
   }
 }

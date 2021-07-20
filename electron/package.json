@@ -41,6 +41,7 @@
   "dependencies": {
     "keytar": "~7.6.0",
     "node-hid": "^2.1.1",
+    "sudo-prompt": "github:zvin/sudo-prompt#7cdede2f0da28fbcc2db48402d7d935f3a825c91",
     "usb-detection": "^4.10.0"
   }
 }
